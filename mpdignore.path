@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch for changes to the MPD ingest playlist
+
+[Path]
+PathModified=/path/to/ingest/playlist.m3u
+Unit=mpdignore.service
+
+[Install]
+WantedBy=multi-user.target
+
