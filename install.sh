@@ -5,6 +5,10 @@
 # configures the systemd service and path units, and ensures everything is properly initialized.
 # Make sure to review and customize the configuration in 'config.ini' before running this script.
 
+# Define user and group variables
+mpdignore_user="root"
+mpdignore_group="root"
+
 mpdconf="/etc/mpd.conf"
 installdir="/usr/local/sbin"
 MPDIGNORE_FILE=""
@@ -89,11 +93,11 @@ create_mpdignore_file
 # Print MPDIGNORE_FILE path
 echo "MPDIGNORE_FILE: $MPDIGNORE_FILE"
 
-cp ./config.ini ./stats.py ./mpdvoldown.py ./mpdvolup.py ./pl.py ./playlist.py ./ignore.sh ./skip.sh ./volume.py ./mpdignore.py "$installdir"
-chown root:root "$installdir/ignore.sh" "$installdir/skip.sh" "$installdir/mpdignore.py" "$installdir/stats.py" "$installdir/mpdvoldown.py" "$installdir/mpdvolup.py" "$installdir/pl.py" "$installdir/playlist.py" "$installdir/volume.py"
-chmod +x "$installdir/ignore.sh" "$installdir/skip.sh" "$installdir/mpdignore.py" "$installdir/stats.py" "$installdir/mpdvoldown.py" "$installdir/mpdvolup.py" "$installdir/pl.py" "$installdir/playlist.py" "$installdir/volume.py"
+cp ./config.ini ./ignore.sh ./skip.sh ./mpdignore.py ./ignore-skip.py "$installdir"
+chown "$mpdignore_user:$mpdignore_group" "$installdir/ignore.sh" "$installdir/skip.sh" "$installdir/mpdignore.py" "$installdir/ignore-skip.py"
+chmod +x "$installdir/ignore.sh" "$installdir/skip.sh" "$installdir/mpdignore.py" "$installdir/ignore-skip.py"
 
-chown root:root "$installdir/config.ini"   # Change ownership to root
+chown "$mpdignore_user:$mpdignore_group" "$installdir/config.ini"   # Change ownership to root
 chmod 600 "$installdir/config.ini"         # Set permissions to allow only root to read and modify
 
 if [[ ! -L "$installdir/skip" ]]; then
