@@ -22,7 +22,6 @@ MPDIgnore is a collection of scripts and configuration files to enhance the func
 | skip.sh | Bash script to call the Python script with the 'skip' argument.                                    |
 | mpdignore.path | Systemd path unit file to monitor changes to the MPD ingest playlist.                             |
 | mpdignore.service | Systemd service unit file to run the `mpdignore.py` script.                                       |
-| stats.py | Python script to gather statistics about the music library and MPD.                                 |
 
 ## Usage
 
