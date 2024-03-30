@@ -28,10 +28,12 @@ MPDIGNORE consists of two main scripts:
 |----------------------------|-------------------------------------------------------------------------------------------------|
 | ignore-skip.py | ignore-skip.py**: Allows users to ignore or skip the current track in the MPD playlist. |
 | ignore.sh | Bash script to call the Python script with the 'ignore' argument.                               |
+| ignore | Symlink to run ignore-skip.py with the ignore arguement.                         |
 | mpdignore.py | Monitors changes to an MPD ingest playlist and adds tracks to an MPD ignore list.   |
 | install.sh | Bash script to install and configure the MPDIgnore system.                                        |
 | config.ini | Configuration file containing MPD server details and paths.                                       |
 | skip.sh | Bash script to call the Python script with the 'skip' argument.                                    |
+| skip | Symlink to run ignore-skip.py with the skip arguement. 
 | mpdignore.path | Systemd path unit file to monitor changes to the MPD ingest playlist.                             |
 | mpdignore.service | Systemd service unit file to run the `mpdignore.py` script.                                       |
 
