@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
 
 """
-ignore-skip.py
+This script provides functionality to either ignore or skip the current song in an MPD playlist.
+When invoked with the 'ignore' argument, it adds the current song to a special '.mpdignore.m3u' playlist,
+effectively ignoring it for future playback. When invoked with the 'skip' argument, it logs the skipped song
+and proceeds to the next song in the playlist.
 
-Description:
-    This script provides functionality to either ignore or skip the current song in an MPD playlist.
-    When invoked with the 'ignore' argument, it adds the current song to a special '.mpdignore.m3u' playlist,
-    effectively ignoring it for future playback. When invoked with the 'skip' argument, it logs the skipped song
-    and proceeds to the next song in the playlist.
-
+Workflow:
+- Copy current track info to memory.
+- Write the queue to TEMPPLAYLIST.
+- Load INGESTPLAYLIST.
+- Write current track info from memory.
+- Save INGESTPLAYLIST.
+- Reload TEMPPLAYLIST.
+- Using info saved in memory, advance to the next track, deleting the old track from the queue.
+- Clear the content of current track info and next track info to ready it for the next usage.
 """
 
 import subprocess
 import datetime
-import configparser
 import os
-import sys
 
 # Function to read MPD configuration from mpd.conf file
 def read_mpd_config():
@@ -47,15 +51,9 @@ def read_mpd_config():
     print("MPD configuration file (mpd.conf) not found in common locations.")
     sys.exit(1)
 
-def logsong(mpdlog, current_song):
-    # Log skipped song
-    timestamp = datetime.datetime.now().strftime('%b %d %H:%M')
-    log_entry = f'{timestamp} : player: skipped "{current_song}"\n'
-    with open(mpdlog, 'a') as log_file:
-        log_file.write(log_entry)
 
+# Function to interact with MPC
 def mpc(args, password, server, port):
-    # Run mpc command with provided arguments
     command = ['mpc', '-h', server, '-p', port, '-P', password] + args
     result = subprocess.run(command, capture_output=True, text=True)
     return result.stdout.strip()
@@ -67,29 +65,50 @@ def main():
 
     action = sys.argv[1]
 
-    # Read MPD configuration from mpd.conf
-    config = read_mpd_config()
+    # Read MPD configuration from mpd.conf file
+    mpd_config = read_mpd_config()
+    MPD_SERVER = mpd_config.get('MPD_HOST', 'localhost')
+    MPD_PORT = mpd_config.get('MPD_PORT', '6600')
+    MPDPASS = mpd_config.get('MPD_PASSWORD', '')
+    PLDIR = mpd_config.get('MPD_PLAYLIST_DIRECTORY', '~/.mpd/playlists')
+    ING_PLAYLIST = mpd_config.get('MPD_INGEST_PLAYLIST', 'ingest')
 
-    server = config.get('MPD', 'SERVER')
-    port = config.get('MPD', 'MPD_PORT')
-    password = config.get('MPD', 'MPDPASS')
-    pldir = config.get('MPD', 'PLDIR')
-    mpdlog = config.get('MPD', 'MPDLOG')
-
-    current_song = mpc(['current', '-f', '%file%'], password, server, port)
+    # Temporary playlist name
+    temp_playlist = "temp_queue"
 
     if action == 'ignore':
-        # Add current song to the ingest playlist
-        mpc(['add', current_song], password, server, port)
-        # Proceed to the next track in the queue
-        mpc(['next'], password, server, port)
-        # Log the ignored track
-        logsong(mpdlog, current_song)
+        # Copy current track info to memory
+        current_track_info = mpc(['current', '-f', '%file%'], MPDPASS, MPD_SERVER, MPD_PORT)
+        # Write the queue to TEMPPLAYLIST
+        mpc(['playlist', 'save', temp_playlist], MPDPASS, MPD_SERVER, MPD_PORT)
+        # Load INGESTPLAYLIST
+        mpc(['load', ING_PLAYLIST], MPDPASS, MPD_SERVER, MPD_PORT)
+        # Write current track info from memory
+        mpc(['add', current_track_info], MPDPASS, MPD_SERVER, MPD_PORT)
+        # Save INGESTPLAYLIST
+        mpc(['playlist', 'save', ING_PLAYLIST], MPDPASS, MPD_SERVER, MPD_PORT)
+        # Reload TEMPPLAYLIST
+        mpc(['load', temp_playlist], MPDPASS, MPD_SERVER, MPD_PORT)
+        # Using info saved in memory, find the next track
+        next_track_info = mpc(['playlist', 'next'], MPDPASS, MPD_SERVER, MPD_PORT)
+        # Using info saved in memory, delete old track from queue
+        mpc(['playlist', 'delete', current_track_info], MPDPASS, MPD_SERVER, MPD_PORT)
+        # Play the next track
+        mpc(['play', next_track_info], MPDPASS, MPD_SERVER, MPD_PORT)
+        # Clear the content of current_track_info and next_track_info
+        current_track_info = ""
+        next_track_info = ""
+
     elif action == 'skip':
+        # Copy current track info to memory
+        current_track_info = mpc(['current', '-f', '%file%'], MPDPASS, MPD_SERVER, MPD_PORT)
         # Log the skipped track
-        logsong(mpdlog, current_song)
+        timestamp = datetime.datetime.now().strftime('%b %d %H:%M')
+        log_entry = f'{timestamp} : player: skipped "{current_track_info}"\n'
+        with open(mpd_config.get('MPDLOG', ''), 'a') as log_file:
+            log_file.write(log_entry)
         # Proceed to the next track in the queue
-        mpc(['next'], password, server, port)
+        mpc(['next'], MPDPASS, MPD_SERVER, MPD_PORT)
 
 if __name__ == "__main__":
     main()
