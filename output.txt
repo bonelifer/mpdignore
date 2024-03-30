@@ -1,0 +1,405 @@
+/home/william/Documents/GitHub/mpdignore/ignore-skip.py:
+#!/usr/bin/env python3
+
+"""
+This script provides functionality to either ignore or skip the current song in an MPD playlist.
+When invoked with the 'ignore' argument, it adds the current song to a special '.mpdignore.m3u' playlist,
+effectively ignoring it for future playback. When invoked with the 'skip' argument, it logs the skipped song
+and proceeds to the next song in the playlist.
+"""
+
+import subprocess
+import datetime
+import configparser
+import sys
+import os
+
+def logsong(mpdlog, current_song):
+    timestamp = datetime.datetime.now().strftime('%b %d %H:%M')
+    log_entry = f'{timestamp} : player: skipped "{current_song}"\n'
+    with open(mpdlog, 'a') as log_file:
+        log_file.write(log_entry)
+
+def mpc(args, password, server, port):
+    command = ['mpc', '-h', server, '-p', port, '-P', password] + args
+    result = subprocess.run(command, capture_output=True, text=True)
+    return result.stdout.strip()
+
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: ./ignore-skip.py <ignore|skip>")
+        sys.exit(1)
+
+    action = sys.argv[1]
+    config_file = 'config.ini'
+
+    if not os.path.exists(config_file):
+        print(f"Error: {config_file} not found.")
+        sys.exit(1)
+
+    config = configparser.ConfigParser()
+    config.read(config_file)
+
+    server = config.get('MPD', 'SERVER')
+    port = config.get('MPD', 'MPD_PORT')
+    password = config.get('MPD', 'MPDPASS')
+    pldir = config.get('MPD', 'PLDIR')
+    mpdlog = config.get('MPD', 'MPDLOG')
+
+    current_song = mpc(['current', '-f', '%file%'], password, server, port)
+    
+    if action == 'ignore':
+        # Ignore current song
+        with open(f"{pldir}/.mpdignore.m3u", 'a') as ignore_file:
+            ignore_file.write(current_song + '\n')
+    elif action == 'skip':
+        # Log and skip
+        logsong(mpdlog, current_song)
+        mpc(['next'], password, server, port)
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+/home/william/Documents/GitHub/mpdignore/ignore.sh:
+#!/bin/bash
+
+# Bash script to execute the Python script 'ignore-skip.py' with the 'ignore' argument,
+# which adds the current song to a special '.mpdignore.m3u' playlist to ignore it for future playback.
+
+
+# Find Python3 executable path
+python_path=$(which python3)
+
+if [[ -z "$python_path" ]]; then
+    echo "Error: Python3 not found."
+    exit 1
+fi
+
+# Call Python script with argument
+"$python_path" skip-ignore.py ignore
+
+
+
+/home/william/Documents/GitHub/mpdignore/mpdignore.py:
+#!/usr/bin/env python3
+"""
+mpdignore.py
+
+Description:
+    This script reads tracks from the ingest playlist and adds them to the MPD (Music Player Daemon) server's ignore list.
+    Tracks listed in the ignore are ignored by MPD with queueing files.
+
+Usage:
+    python mpdignore.py
+
+Example:
+    python mpdignore.py
+        Reads tracks from the ingest playlist and adds them to the MPD ignore list.
+""" 
+
+import os
+import time
+import mpd
+import configparser
+
+# Load configuration from config.ini
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+MPD_SERVER = config['MPD']['SERVER']
+MPD_PORT = int(config['MPD']['MPD_PORT'])
+MPDPASS = config['MPD'].get('MPDPASS', None)  # Password is optional
+SERVER_NAME = config['MPD']['SERVER_NAME']
+PLDIR = config['MPD']['PLDIR']
+MPDIGNORE_FILE = os.path.join(PLDIR, ".mpdignore.m3u")
+INGEST_PLAYLIST = MPDIGNORE_FILE  # For clarity
+
+def is_playlist_busy(client, playlist_name):
+    """
+    Check if the specified playlist is currently being modified (e.g., songs are being added to it).
+    """
+    status = client.status()
+    if 'playlist' in status and status['playlist'] == playlist_name:
+        return True
+    return False
+
+def copy_playlist_to_working(client):
+    # Clear working playlist
+    client.clear("working")
+    
+    # Load contents of ingest playlist to working playlist
+    client.load(MPDIGNORE_FILE, "working")
+
+def clear_ingest_playlist(client):
+    # Check if ingest playlist is busy (songs are being added to it)
+    if is_playlist_busy(client, INGEST_PLAYLIST):
+        print("Ingest playlist is busy. Skipping clear operation.")
+    else:
+        # Clear the ingest playlist
+        client.clear(INGEST_PLAYLIST)
+
+def process_working_playlist(client):
+    # Process working playlist and add tracks to .mpdignore file
+    with open(os.path.join(PLDIR, ".mpdignore"), "a") as f:
+        for song in client.playlistinfo("working"):
+            # Add logic here to determine if song should be added to .mpdignore
+            # For example, you might check metadata or file paths
+            # If condition met, write song file path to .mpdignore
+            f.write(song['file'] + "\n")
+
+def main_loop():
+    client = mpd.MPDClient()
+    client.connect(MPD_SERVER, MPD_PORT)
+    if MPDPASS:
+        client.password(MPDPASS)
+
+    while True:
+        # Wait for changes to ingest playlist
+        while not os.path.exists(MPDIGNORE_FILE):
+            time.sleep(1)
+        
+        # Copy ingest playlist to working playlist
+        copy_playlist_to_working(client)
+
+        # Clear ingest playlist
+        clear_ingest_playlist(client)
+
+        # Process working playlist and add tracks to .mpdignore
+        process_working_playlist(client)
+
+    client.close()
+    client.disconnect()
+
+if __name__ == "__main__":
+    main_loop()
+
+
+
+/home/william/Documents/GitHub/mpdignore/install.sh:
+#!/bin/bash
+
+# This script installs and configures the MPDIgnore system.
+# It sets up the necessary dependencies, copies the scripts to the appropriate directories,
+# configures the systemd service and path units, and ensures everything is properly initialized.
+# Make sure to review and customize the configuration in 'config.ini' before running this script.
+
+# Define user and group variables
+mpdignore_user="root"
+mpdignore_group="root"
+
+mpdconf="/etc/mpd.conf"
+installdir="/usr/local/sbin"
+MPDIGNORE_FILE=""
+
+# Function to get PLDIR from config.ini
+get_pldir() {
+    awk -F '=' '/\[MPD\]/{f=1} f && /PLDIR/{print $2; exit}' "$HOME/.config/config.ini" | tr -d '[:space:]'
+}
+
+# Function to create MPDIGNORE_FILE
+create_mpdignore_file() {
+    touch "$MPDIGNORE_FILE"
+}
+
+# Update mpdignore.service
+sed -i "s|/path/to/|$installdir|" mpdignore.service
+
+# Update mpdignore.path
+pldir=$(get_pldir)
+sed -i "s|/path/to/|$pldir|" mpdignore.path
+
+if [[ -f "$mpdconf" ]]; then
+   # If mpd.conf exists in the specified location
+   found_conf="$mpdconf"
+   mpdpass="$(grep -v "^#" "$mpdconf" | grep -v "^$" | grep password | grep control | head -n 1)"
+   mpdpass="${mpdpass%*\"}"
+   mpdpass="${mpdpass#*\"}"
+   mpdpass="${mpdpass%\@*}"
+elif [[ -f "$HOME/.mpd/mpd.conf" ]]; then
+   # If mpd.conf exists in the default location
+   found_conf="$HOME/.mpd/mpd.conf"
+   mpdpass="$(grep -v "^#" "$HOME/.mpd/mpd.conf" | grep -v "^$" | grep password | grep control | head -n 1)"
+   mpdpass="${mpdpass%*\"}"
+   mpdpass="${mpdpass#*\"}"
+   mpdpass="${mpdpass%\@*}"
+elif [[ -f "$HOME/.config/mpd/mpd.conf" ]]; then
+   # If mpd.conf exists in an alternative location
+   found_conf="$HOME/.config/mpd/mpd.conf"
+   mpdpass="$(grep -v "^#" "$HOME/.config/mpd/mpd.conf" | grep -v "^$" | grep password | grep control | head -n 1)"
+   mpdpass="${mpdpass%*\"}"
+   mpdpass="${mpdpass#*\"}"
+   mpdpass="${mpdpass%\@*}"
+elif [[ -f "$HOME/.config/mpd.conf" ]]; then
+   # If mpd.conf exists in another possible alternative location
+   found_conf="$HOME/.config/mpd.conf"
+   mpdpass="$(grep -v "^#" "$HOME/.config/mpd.conf" | grep -v "^$" | grep password | grep control | head -n 1)"
+   mpdpass="${mpdpass%*\"}"
+   mpdpass="${mpdpass#*\"}"
+   mpdpass="${mpdpass%\@*}"
+fi
+
+if [[ -n "$mpdpass" ]]; then
+   # If password is found in any mpd.conf file, update config.ini
+   found_config_ini="$HOME/.config/config.ini"
+   if [[ -f "$found_config_ini" ]]; then
+      sed -i "s/^\(MPDPASS\s*=\s*\).*\$/\1$mpdpass/" "$found_config_ini"
+   fi
+else
+   # If none of the standard locations exist or password not found, prompt the user for the mpd control password
+   read -p "What is the mpd control password? " mpdpass
+   # Update config.ini with the password entered by the user
+   found_config_ini="$HOME/.config/config.ini"
+   if [[ -f "$found_config_ini" ]]; then
+      sed -i "s/^\(MPDPASS\s*=\s*\).*\$/\1$mpdpass/" "$found_config_ini"
+   fi
+fi
+
+if [[ -n "$found_conf" ]]; then
+   # Update the found configuration file with the password
+   sed -i "s/^\(password\s*=\s*\).*\$/\1$mpdpass/" "$found_conf"
+fi
+
+# Get PLDIR
+pldir=$(get_pldir)
+
+# Create MPDIGNORE_FILE path
+MPDIGNORE_FILE="$pldir/.mpdignore.m3u"
+
+# Create MPDIGNORE_FILE
+create_mpdignore_file
+
+# Print MPDIGNORE_FILE path
+echo "MPDIGNORE_FILE: $MPDIGNORE_FILE"
+
+cp ./config.ini ./ignore.sh ./skip.sh ./mpdignore.py ./ignore-skip.py "$installdir"
+chown "$mpdignore_user:$mpdignore_group" "$installdir/ignore.sh" "$installdir/skip.sh" "$installdir/mpdignore.py" "$installdir/ignore-skip.py"
+chmod +x "$installdir/ignore.sh" "$installdir/skip.sh" "$installdir/mpdignore.py" "$installdir/ignore-skip.py"
+
+chown "$mpdignore_user:$mpdignore_group" "$installdir/config.ini"   # Change ownership to root
+chmod 600 "$installdir/config.ini"         # Set permissions to allow only root to read and modify
+
+if [[ ! -L "$installdir/skip" ]]; then
+ ln -s "$installdir/skip.sh" "$installdir/skip"
+fi
+
+if [[ ! -L  "$installdir/ignore" ]]; then
+ ln -s "$installdir/ignore.sh" "$installdir/ignore"
+fi
+
+sudo cp mpdignore.service /etc/systemd/system/
+sudo cp mpdignore.path /etc/systemd/system/
+sudo chown root:root /etc/systemd/system/mpdignore.path /etc/systemd/system/mpdignore.service 
+sudo systemctl daemon-reload
+sudo systemctl enable mpdignore.path && sudo systemctl start mpdignore.path && sudo systemctl status mpdignore.path
+
+
+
+/home/william/Documents/GitHub/mpdignore/README.md:
+# MPDIgnore
+## WIP: May no work currently
+
+[![GPLv3 license](https://img.shields.io/badge/License-GPLv3-blue.svg)](http://perso.crans.org/besson/LICENSE.html)
+
+[![GitHub](https://badgen.net/badge/icon/github?icon=github&label)](https://github.com)
+[![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
+[![made-with-bash](https://img.shields.io/badge/Made%20with-Bash-1f425f.svg)](https://www.gnu.org/software/bash/)
+[![Pull Requests welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg?style=flat-square)](https://github.com/bonelifer/mpd-scripts/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
+
+MPDIgnore is a collection of scripts and configuration files to enhance the functionality of Music Player Daemon (MPD) by providing features such as skipping, ignoring, volume control, playlist management, and playlist monitoring.
+
+## Overview
+
+| File                       | Description                                                                                     |
+|----------------------------|-------------------------------------------------------------------------------------------------|
+| ignore-skip.py | Python script to ignore or skip the current song in MPD and log the action to a specified file. |
+| ignore.sh | Bash script to call the Python script with the 'ignore' argument.                               |
+| mpdignore.py | Python script to monitor changes to an MPD ingest playlist and add tracks to a specified file.   |
+| install.sh | Bash script to install and configure the MPDIgnore system.                                        |
+| config.ini | Configuration file containing MPD server details and paths.                                       |
+| skip.sh | Bash script to call the Python script with the 'skip' argument.                                    |
+| mpdignore.path | Systemd path unit file to monitor changes to the MPD ingest playlist.                             |
+| mpdignore.service | Systemd service unit file to run the `mpdignore.py` script.                                       |
+
+## Usage
+
+To use these scripts, ensure you have the necessary dependencies installed and configure the `config.ini` file with your MPD server details and paths. Then, run the `install.sh` script to set up the MPDIgnore system. You can then use the provided scripts to control various aspects of your MPD server.
+
+## License
+
+This project is licensed under the **GNU General Public License v3**.
+
+See [LICENSE](LICENSE) for more information.
+
+
+
+
+/home/william/Documents/GitHub/mpdignore/config.ini:
+"""
+MPDIGNORE Configuration File
+
+This configuration file stores settings for connecting to the MPD server.
+"""
+
+[MPD]
+SERVER = 192.168.1.2
+MPD_PORT = 6600
+MPDPASS = seven314
+SERVER_NAME = gigabyte
+PLDIR = /var/lib/mpd/playlists
+MPDLOG = /var/log/mpd/mpd.log
+
+
+
+/home/william/Documents/GitHub/mpdignore/TODO:
+Make sure playlist functionality works like it should in mpdignore.py
+Add missing .mpdignore functionality to mpdignore.py
+
+
+/home/william/Documents/GitHub/mpdignore/skip.sh:
+#!/bin/bash
+# Bash script to call the Python script with the 'skip' argument. 
+
+# Find Python3 executable path
+python_path=$(which python3)
+
+if [[ -z "$python_path" ]]; then
+    echo "Error: Python3 not found."
+    exit 1
+fi
+
+# Call Python script with argument
+"$python_path" skip-ignore.py skip
+
+
+
+/home/william/Documents/GitHub/mpdignore/mpdignore.path:
+[Unit]
+Description=Watch for changes to the MPD ingest playlist
+
+[Path]
+PathModified=/path/to/ingest/playlist.m3u
+Unit=mpdignore.service
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+/home/william/Documents/GitHub/mpdignore/mpdignore.service:
+[Unit]
+Description=MPD Ignore Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /path/to/mpdignore.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+

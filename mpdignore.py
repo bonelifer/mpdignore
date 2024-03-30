@@ -1,91 +1,92 @@
 #!/usr/bin/env python3
+
 """
 mpdignore.py
 
 Description:
-    This script reads tracks from the ingest playlist and adds them to the MPD (Music Player Daemon) server's ignore list.
-    Tracks listed in the ignore are ignored by MPD with queueing files.
+    This script monitors changes to an MPD ingest playlist and performs the following actions:
+    1. Copies new tracks from the ingest playlist to a temporary storage file.
+    2. Clears the ingest playlist.
+    3. Processes the tracks in the temporary storage file:
+       - Adds each track to its respective .mpdignore file in the appropriate album folder.
+    4. Empties the temporary storage file once all tracks are processed.
 
 Usage:
     python mpdignore.py
+        Monitors changes to the MPD ingest playlist and processes new tracks.
 
-Example:
-    python mpdignore.py
-        Reads tracks from the ingest playlist and adds them to the MPD ignore list.
-""" 
+"""
 
 import os
 import time
-import mpd
+import shutil
 import configparser
 
-# Load configuration from config.ini
-config = configparser.ConfigParser()
-config.read('config.ini')
-
-MPD_SERVER = config['MPD']['SERVER']
-MPD_PORT = int(config['MPD']['MPD_PORT'])
-MPDPASS = config['MPD'].get('MPDPASS', None)  # Password is optional
-SERVER_NAME = config['MPD']['SERVER_NAME']
-PLDIR = config['MPD']['PLDIR']
-MPDIGNORE_FILE = os.path.join(PLDIR, ".mpdignore.m3u")
-INGEST_PLAYLIST = MPDIGNORE_FILE  # For clarity
-
-def is_playlist_busy(client, playlist_name):
+# Function to read MPD configuration from mpd.conf file
+def read_mpd_config():
     """
-    Check if the specified playlist is currently being modified (e.g., songs are being added to it).
+    Function to read MPD configuration from mpd.conf file.
+
+    Returns:
+    - Dictionary containing MPD configuration.
     """
-    status = client.status()
-    if 'playlist' in status and status['playlist'] == playlist_name:
-        return True
-    return False
+    mpd_conf_paths = [
+        "/etc/mpd.conf",
+        "/etc/mpd/mpd.conf",
+        "/usr/local/etc/mpd.conf",
+        "~/.mpdconf",
+        "~/.config/mpd/mpd.conf"
+    ]
 
-def copy_playlist_to_working(client):
-    # Clear working playlist
-    client.clear("working")
-    
-    # Load contents of ingest playlist to working playlist
-    client.load(MPDIGNORE_FILE, "working")
+    for path in mpd_conf_paths:
+        full_path = os.path.expanduser(path)
+        if os.path.isfile(full_path):
+            config = {}
+            with open(full_path, 'r') as f:
+                for line in f:
+                    if '=' in line:
+                        key, value = line.strip().split('=', 1)
+                        config[key.strip()] = value.strip()
+            return config
 
-def clear_ingest_playlist(client):
-    # Check if ingest playlist is busy (songs are being added to it)
-    if is_playlist_busy(client, INGEST_PLAYLIST):
-        print("Ingest playlist is busy. Skipping clear operation.")
-    else:
-        # Clear the ingest playlist
-        client.clear(INGEST_PLAYLIST)
+    print("MPD configuration file (mpd.conf) not found in common locations.")
+    sys.exit(1)
 
-def process_working_playlist(client):
-    # Process working playlist and add tracks to .mpdignore file
-    with open(os.path.join(PLDIR, ".mpdignore"), "a") as f:
-        for song in client.playlistinfo("working"):
-            # Add logic here to determine if song should be added to .mpdignore
-            # For example, you might check metadata or file paths
-            # If condition met, write song file path to .mpdignore
-            f.write(song['file'] + "\n")
+# Load MPD configuration
+config = read_mpd_config()
+PLDIR = config.get('PLDIR', '/var/lib/mpd/playlists')
+MPDIGNORE_PLAYLIST = 'mpdignore.m3u'
+MPDIGNORE_FILE = os.path.join(PLDIR, MPDIGNORE_PLAYLIST)
+INGEST_PLAYLIST = 'ingest.m3u'
+
+def process_tracks():
+    # Process tracks in the temporary storage file
+    with open(MPDIGNORE_FILE, 'r') as temp_file:
+        for track in temp_file:
+            track = track.strip()
+            # Extract album folder from the track path
+            album_folder = os.path.dirname(track)
+            # Construct .mpdignore file path
+            mpdignore_path = os.path.join(album_folder, '.mpdignore')
+            # Append the track to the .mpdignore file
+            with open(mpdignore_path, 'a') as mpdignore_file:
+                mpdignore_file.write(track + '\n')
+
+    # Clear the temporary storage file
+    open(MPDIGNORE_FILE, 'w').close()
 
 def main_loop():
-    client = mpd.MPDClient()
-    client.connect(MPD_SERVER, MPD_PORT)
-    if MPDPASS:
-        client.password(MPDPASS)
-
     while True:
-        # Wait for changes to ingest playlist
-        while not os.path.exists(MPDIGNORE_FILE):
-            time.sleep(1)
-        
-        # Copy ingest playlist to working playlist
-        copy_playlist_to_working(client)
-
-        # Clear ingest playlist
-        clear_ingest_playlist(client)
-
-        # Process working playlist and add tracks to .mpdignore
-        process_working_playlist(client)
-
-    client.close()
-    client.disconnect()
+        # Check for changes to the ingest playlist
+        if os.path.exists(INGEST_PLAYLIST):
+            # Copy new tracks from ingest playlist to temporary storage file
+            shutil.copyfile(INGEST_PLAYLIST, MPDIGNORE_FILE)
+            # Clear the ingest playlist
+            open(INGEST_PLAYLIST, 'w').close()
+            # Process the tracks in the temporary storage file
+            process_tracks()
+        # Wait for changes every 5 seconds
+        time.sleep(5)
 
 if __name__ == "__main__":
     main_loop()

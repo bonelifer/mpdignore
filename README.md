@@ -27,8 +27,11 @@ MPDIgnore is a collection of scripts and configuration files to enhance the func
 
 To use these scripts, ensure you have the necessary dependencies installed and configure the `config.ini` file with your MPD server details and paths. Then, run the `install.sh` script to set up the MPDIgnore system. You can then use the provided scripts to control various aspects of your MPD server.
 
+## MPDIGNORE Workflow
+[WORKFLOW](./DOCS/WORKFLOW.md)
+
 ## License
 
 This project is licensed under the **GNU General Public License v3**.
 
-See [LICENSE](LICENSE) for more information.
+See [LICENSE](./LICENSE) for more information.
