@@ -1,5 +1,0 @@
-Add missing .mpdignore functionality to mpdignore.py
-
-WORK FLOW:
-track gets ignored, copy from queue to MPDIGNORE_FILE.
-go to next song in queue, and remove ignored track
