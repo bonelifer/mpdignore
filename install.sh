@@ -37,6 +37,12 @@ sed -i "s|/path/to/|$installdir|" mpdignore.service
 pldir=$(get_pldir)
 sed -i "s|/path/to/|$pldir|" mpdignore.path
 
+cp config.ini "$HOME/.config/"
+cp ./ignore.sh ./skip.sh ./mpdignore.py ./ignore-skip.py "$installdir"
+chown "$mpdignore_user:$mpdignore_group" "$installdir/ignore.sh" "$installdir/skip.sh" "$installdir/mpdignore.py" "$installdir/ignore-skip.py"
+chmod +x "$installdir/ignore.sh" "$installdir/skip.sh" "$installdir/mpdignore.py" "$installdir/ignore-skip.py"
+
+
 # Parse config.ini to get MPDIGNORE_PLAYLIST
 MPDIGNORE_PLAYLIST=$(parse_config_ini)
 
@@ -61,9 +67,7 @@ create_mpdignore_file
 # Print MPDIGNORE_FILE path
 echo "MPDIGNORE_FILE: $MPDIGNORE_FILE"
 
-cp ./ignore.sh ./skip.sh ./mpdignore.py ./ignore-skip.py "$installdir"
-chown "$mpdignore_user:$mpdignore_group" "$installdir/ignore.sh" "$installdir/skip.sh" "$installdir/mpdignore.py" "$installdir/ignore-skip.py"
-chmod +x "$installdir/ignore.sh" "$installdir/skip.sh" "$installdir/mpdignore.py" "$installdir/ignore-skip.py"
+
 
 if [[ ! -L "$installdir/skip" ]]; then
  ln -s "$installdir/skip.sh" "$installdir/skip"
