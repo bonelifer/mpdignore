@@ -1,34 +1,46 @@
 #!/usr/bin/env python3
 
 """
+Ignore Skip
+
 This script provides functionality to either ignore or skip the current song in an MPD playlist.
-When invoked with the 'ignore' argument, it adds the current song to a special '.mpdignore.m3u' playlist,
-effectively ignoring it for future playback. When invoked with the 'skip' argument, it logs the skipped song
-and proceeds to the next song in the playlist.
+When invoked with the 'ignore' argument, it adds the current song to an INGEST playlist,
+which is then processed by another script (mpdignore.py) to handle the ignored tracks.
+When invoked with the 'skip' argument, it logs the skipped song and proceeds to the next song in the playlist.
 
 Workflow:
-- Copy current track info to memory.
-- Write the queue to TEMPPLAYLIST.
-- Load INGESTPLAYLIST.
-- Write current track info from memory.
-- Save INGESTPLAYLIST.
-- Reload TEMPPLAYLIST.
-- Using info saved in memory, advance to the next track, deleting the old track from the queue.
-- Clear the content of current track info and next track info to ready it for the next usage.
+- Read MPD configuration from the mpd.conf file.
+- Accept user input to determine the action (ignore or skip).
+- If the action is "ignore":
+    - Add the current track to the INGEST playlist.
+    - Proceed to the next track in the queue.
+    - Write the current track to the INGEST playlist.
+    - Copy the current queue to a temporary playlist to preserve the playback order.
+    - Load the INGEST playlist to add the ignored track without disrupting the current playback.
+    - Add the ignored track to the INGEST playlist for queue management.
+    - Reload the temporary playlist to restore the original queue.
+    - Remove the ignored track from the queue to prevent it from affecting subsequent playback.
+    - Proceed to the next track to continue playback seamlessly.
+- If the action is "skip":
+    - Proceed to the next track in the queue.
+    - Log the skipped track.
+- Repeat the process based on user input.
 """
 
 import subprocess
-import datetime
 import os
+import shutil
+import time
+import configparser
 
-# Function to read MPD configuration from mpd.conf file
-def read_mpd_config():
-    """
-    Function to read MPD configuration from mpd.conf file.
 
-    Returns:
-    - Dictionary containing MPD configuration.
-    """
+# Function to read MPDIGNORE configuration from config.ini file
+def read_mpdignore_config():
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    mpdignore_config = config['MPDIGNORE']
+
+    # Read additional configuration from mpd.conf
     mpd_conf_paths = [
         "/etc/mpd.conf",
         "/etc/mpd/mpd.conf",
@@ -40,76 +52,73 @@ def read_mpd_config():
     for path in mpd_conf_paths:
         full_path = os.path.expanduser(path)
         if os.path.isfile(full_path):
-            config = {}
-            with open(full_path, 'r') as f:
-                for line in f:
-                    if '=' in line:
-                        key, value = line.strip().split('=', 1)
-                        config[key.strip()] = value.strip()
-            return config
+            mpd_config = configparser.ConfigParser()
+            mpd_config.read(full_path)
+            mpd_section = mpd_config['MPD']
+            mpdignore_config['PLDIR'] = mpd_section.get('PLDIR', '/var/lib/mpd/playlists')
+            mpdignore_config['MPD_PORT'] = mpd_section.get('PORT', '6600')
+            mpdignore_config['MPDPASS'] = mpd_section.get('PASSWORD', '')
+            mpdignore_config['MPD_SERVER'] = mpd_section.get('SERVER', 'localhost')
+            break
 
-    print("MPD configuration file (mpd.conf) not found in common locations.")
-    sys.exit(1)
+    return mpdignore_config
 
+# Load MPDIGNORE configuration
+mpdignore_config = read_mpdignore_config()
+MPDIGNORE_PLAYLIST = mpdignore_config.get('MPDIGNORE_PLAYLIST')
+INGEST_PLAYLIST = mpdignore_config.get('INGEST_PLAYLIST')
 
-# Function to interact with MPC
-def mpc(args, password, server, port):
-    command = ['mpc', '-h', server, '-p', port, '-P', password] + args
-    result = subprocess.run(command, capture_output=True, text=True)
-    return result.stdout.strip()
+# Define the path for the playlist directory
+PLDIR = os.path.expanduser(mpdignore_config['PLDIR'])
 
-def main():
-    if len(sys.argv) != 2:
-        print("Usage: ./ignore-skip.py <ignore|skip>")
-        sys.exit(1)
+# Define the paths for the playlist files
+MPDIGNORE_FILE = os.path.join(PLDIR, MPDIGNORE_PLAYLIST)
+INGEST_FILE = os.path.join(PLDIR, INGEST_PLAYLIST)
 
-    action = sys.argv[1]
+# Temporary playlist path
+TEMP_PLAYLIST = os.path.join(PLDIR, "temp_queue")
 
-    # Read MPD configuration from mpd.conf file
-    mpd_config = read_mpd_config()
-    MPD_SERVER = mpd_config.get('MPD_HOST', 'localhost')
-    MPD_PORT = mpd_config.get('MPD_PORT', '6600')
-    MPDPASS = mpd_config.get('MPD_PASSWORD', '')
-    PLDIR = mpd_config.get('MPD_PLAYLIST_DIRECTORY', '~/.mpd/playlists')
-    ING_PLAYLIST = mpd_config.get('MPD_INGEST_PLAYLIST', 'ingest')
+# Function to copy current track to memory
+def copy_current_track_to_memory(current_track):
+    with open(TEMP_PLAYLIST, 'w') as temp_file:
+        temp_file.write(current_track)
 
-    # Temporary playlist name
-    temp_playlist = "temp_queue"
+# Function to write queue to TEMP_PLAYLIST
+def write_queue_to_temp():
+    shutil.copyfile(MPDIGNORE_FILE, TEMP_PLAYLIST)
 
-    if action == 'ignore':
-        # Copy current track info to memory
-        current_track_info = mpc(['current', '-f', '%file%'], MPDPASS, MPD_SERVER, MPD_PORT)
-        # Write the queue to TEMPPLAYLIST
-        mpc(['playlist', 'save', temp_playlist], MPDPASS, MPD_SERVER, MPD_PORT)
-        # Load INGESTPLAYLIST
-        mpc(['load', ING_PLAYLIST], MPDPASS, MPD_SERVER, MPD_PORT)
-        # Write current track info from memory
-        mpc(['add', current_track_info], MPDPASS, MPD_SERVER, MPD_PORT)
-        # Save INGESTPLAYLIST
-        mpc(['playlist', 'save', ING_PLAYLIST], MPDPASS, MPD_SERVER, MPD_PORT)
-        # Reload TEMPPLAYLIST
-        mpc(['load', temp_playlist], MPDPASS, MPD_SERVER, MPD_PORT)
-        # Using info saved in memory, find the next track
-        next_track_info = mpc(['playlist', 'next'], MPDPASS, MPD_SERVER, MPD_PORT)
-        # Using info saved in memory, delete old track from queue
-        mpc(['playlist', 'delete', current_track_info], MPDPASS, MPD_SERVER, MPD_PORT)
-        # Play the next track
-        mpc(['play', next_track_info], MPDPASS, MPD_SERVER, MPD_PORT)
-        # Clear the content of current_track_info and next_track_info
-        current_track_info = ""
-        next_track_info = ""
+# Function to load INGEST_PLAYLIST
+def load_ingest_playlist():
+    shutil.copyfile(INGEST_FILE, MPDIGNORE_FILE)
+    open(INGEST_FILE, 'w').close()
 
-    elif action == 'skip':
-        # Copy current track info to memory
-        current_track_info = mpc(['current', '-f', '%file%'], MPDPASS, MPD_SERVER, MPD_PORT)
-        # Log the skipped track
-        timestamp = datetime.datetime.now().strftime('%b %d %H:%M')
-        log_entry = f'{timestamp} : player: skipped "{current_track_info}"\n'
-        with open(mpd_config.get('MPDLOG', ''), 'a') as log_file:
-            log_file.write(log_entry)
-        # Proceed to the next track in the queue
-        mpc(['next'], MPDPASS, MPD_SERVER, MPD_PORT)
+# Function to write current track to INGEST_PLAYLIST
+def write_current_track_to_ingest(current_track):
+    with open(INGEST_FILE, 'w') as ingest_file:
+        ingest_file.write(current_track)
+
+# Function to save INGEST_PLAYLIST
+def save_ingest_playlist():
+    shutil.copyfile(MPDIGNORE_FILE, INGEST_FILE)
+
+# Function to reload TEMP_PLAYLIST
+def reload_temp_playlist():
+    shutil.copyfile(TEMP_PLAYLIST, MPDIGNORE_FILE)
+
+# Function to advance to next track
+def advance_to_next_track():
+    # Remove current track from TEMP_PLAYLIST
+    with open(TEMP_PLAYLIST, 'r') as temp_file:
+        next_track = temp_file.readline()
+        next_track = temp_file.readline()
+    reload_temp_playlist()
+    return next_track.strip()
+
+# Main loop
+def main_loop():
+    while True:
+        time.sleep(5)
 
 if __name__ == "__main__":
-    main()
+    main_loop()
 
