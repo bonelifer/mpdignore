@@ -1,26 +1,33 @@
 #!/usr/bin/env python3
 
 """
-mpdignore.py
+This script monitors an INGEST playlist in MPD and processes tracks added to it.
+When a track is added to the INGEST playlist, it copies the track to a special '.mpdignore.m3u' file
+and then adds each track in this file to its respective '.mpdignore' file in the appropriate album folder.
+The INGEST playlist is then cleared. This script runs indefinitely, continuously monitoring the INGEST playlist.
 
-Description:
-    This script monitors changes to an MPD ingest playlist and performs the following actions:
-    1. Copies new tracks from the ingest playlist to a temporary storage file.
-    2. Clears the ingest playlist.
-    3. Processes the tracks in the temporary storage file:
-       - Adds each track to its respective .mpdignore file in the appropriate album folder.
-    4. Empties the temporary storage file once all tracks are processed.
-
-Usage:
-    python mpdignore.py
-        Monitors changes to the MPD ingest playlist and processes new tracks.
-
+Workflow:
+- Read MPD configuration from the mpd.conf file.
+- Continuously monitor changes to the INGEST playlist.
+- When a change is detected in the INGEST playlist:
+    - Copy the new tracks from the INGEST playlist to the MPDIGNORE_FILE.
+    - Clear the INGEST playlist.
+    - Process the tracks in the MPDIGNORE_FILE:
+        - Add each track to its respective .mpdignore file in the appropriate album folder.
+        - Empty the MPDIGNORE_FILE once all tracks are processed.
+- Repeat the monitoring process indefinitely.
 """
 
+import subprocess
 import os
 import time
 import shutil
-import configparser
+import sys
+
+# BEGIN User editable variables
+MPDIGNORE_PLAYLIST = 'mpdignore.m3u'
+INGEST_PLAYLIST = 'ingest.m3u'
+# END User editable variables
 
 # Function to read MPD configuration from mpd.conf file
 def read_mpd_config():
@@ -55,9 +62,8 @@ def read_mpd_config():
 # Load MPD configuration
 config = read_mpd_config()
 PLDIR = config.get('PLDIR', '/var/lib/mpd/playlists')
-MPDIGNORE_PLAYLIST = 'mpdignore.m3u'
 MPDIGNORE_FILE = os.path.join(PLDIR, MPDIGNORE_PLAYLIST)
-INGEST_PLAYLIST = 'ingest.m3u'
+INGEST_FILE = os.path.join(PLDIR, INGEST_PLAYLIST)
 
 def process_tracks():
     # Process tracks in the temporary storage file
@@ -78,11 +84,11 @@ def process_tracks():
 def main_loop():
     while True:
         # Check for changes to the ingest playlist
-        if os.path.exists(INGEST_PLAYLIST):
+        if os.path.exists(INGEST_FILE):
             # Copy new tracks from ingest playlist to temporary storage file
-            shutil.copyfile(INGEST_PLAYLIST, MPDIGNORE_FILE)
+            shutil.copyfile(INGEST_FILE, MPDIGNORE_FILE)
             # Clear the ingest playlist
-            open(INGEST_PLAYLIST, 'w').close()
+            open(INGEST_FILE, 'w').close()
             # Process the tracks in the temporary storage file
             process_tracks()
         # Wait for changes every 5 seconds

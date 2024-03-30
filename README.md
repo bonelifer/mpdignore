@@ -8,15 +8,27 @@
 [![made-with-bash](https://img.shields.io/badge/Made%20with-Bash-1f425f.svg)](https://www.gnu.org/software/bash/)
 [![Pull Requests welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg?style=flat-square)](https://github.com/bonelifer/mpd-scripts/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
 
-MPDIgnore is a collection of scripts and configuration files to enhance the functionality of Music Player Daemon (MPD) by providing features such as skipping, ignoring, volume control, playlist management, and playlist monitoring.
+MPDIGNORE is a set of scripts designed to enhance the functionality of Music Player Daemon (MPD) by providing features such as ignoring specific tracks, skipping tracks, and managing playlists effectively.
 
 ## Overview
 
+MPDIGNORE consists of two main scripts:
+
+- **mpdignore.py**: Monitors changes to an MPD ingest playlist and adds tracks to an MPD ignore list.
+- **ignore-skip.py**: Allows users to ignore or skip the current track in the MPD playlist.
+
+## Features
+
+- **Ignore Tracks**: Ignore specific tracks in the MPD playlist to prevent them from being played in the future.
+- **Skip Tracks**: Skip the current track in the MPD playlist and proceed to the next track.
+- **Playlist Management**: Automatically manage playlists by adding ignored tracks to a designated ignore list.
+
+
 | File                       | Description                                                                                     |
 |----------------------------|-------------------------------------------------------------------------------------------------|
-| ignore-skip.py | Python script to ignore or skip the current song in MPD and log the action to a specified file. |
+| ignore-skip.py | ignore-skip.py**: Allows users to ignore or skip the current track in the MPD playlist. |
 | ignore.sh | Bash script to call the Python script with the 'ignore' argument.                               |
-| mpdignore.py | Python script to monitor changes to an MPD ingest playlist and add tracks to a specified file.   |
+| mpdignore.py | Monitors changes to an MPD ingest playlist and adds tracks to an MPD ignore list.   |
 | install.sh | Bash script to install and configure the MPDIgnore system.                                        |
 | config.ini | Configuration file containing MPD server details and paths.                                       |
 | skip.sh | Bash script to call the Python script with the 'skip' argument.                                    |
