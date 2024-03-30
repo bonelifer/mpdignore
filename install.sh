@@ -3,19 +3,26 @@
 # This script installs and configures the MPDIgnore system.
 # It sets up the necessary dependencies, copies the scripts to the appropriate directories,
 # configures the systemd service and path units, and ensures everything is properly initialized.
-# Make sure to review and customize the configuration in 'config.ini' before running this script.
 
 # Define user and group variables
 mpdignore_user="root"
 mpdignore_group="root"
 
+# User editable variables
+MPDIGNORE_FILE=""
+MPDIGNORE_PLAYLIST=""
+
 mpdconf="/etc/mpd.conf"
 installdir="/usr/local/sbin"
-MPDIGNORE_FILE=""
 
-# Function to get PLDIR from config.ini
+# Function to parse config.ini and retrieve the value of MPDIGNORE_PLAYLIST
+parse_config_ini() {
+    awk -F '=' '/\[MPDIGNORE\]/{f=1} f && /MPDIGNORE_PLAYLIST/{print $2; exit}' "$HOME/.config/config.ini" | tr -d '[:space:]'
+}
+
+# Function to get PLDIR from mpd.conf
 get_pldir() {
-    awk -F '=' '/\[MPD\]/{f=1} f && /PLDIR/{print $2; exit}' "$HOME/.config/config.ini" | tr -d '[:space:]'
+    awk -F '=' '/\[MPD\]/{f=1} f && /PLDIR/{print $2; exit}' "$mpdconf" | tr -d '[:space:]'
 }
 
 # Function to create MPDIGNORE_FILE
@@ -30,6 +37,9 @@ sed -i "s|/path/to/|$installdir|" mpdignore.service
 pldir=$(get_pldir)
 sed -i "s|/path/to/|$pldir|" mpdignore.path
 
+# Parse config.ini to get MPDIGNORE_PLAYLIST
+MPDIGNORE_PLAYLIST=$(parse_config_ini)
+
 if [[ -f "$mpdconf" ]]; then
    # If mpd.conf exists in the specified location
    found_conf="$mpdconf"
@@ -37,55 +47,13 @@ if [[ -f "$mpdconf" ]]; then
    mpdpass="${mpdpass%*\"}"
    mpdpass="${mpdpass#*\"}"
    mpdpass="${mpdpass%\@*}"
-elif [[ -f "$HOME/.mpd/mpd.conf" ]]; then
-   # If mpd.conf exists in the default location
-   found_conf="$HOME/.mpd/mpd.conf"
-   mpdpass="$(grep -v "^#" "$HOME/.mpd/mpd.conf" | grep -v "^$" | grep password | grep control | head -n 1)"
-   mpdpass="${mpdpass%*\"}"
-   mpdpass="${mpdpass#*\"}"
-   mpdpass="${mpdpass%\@*}"
-elif [[ -f "$HOME/.config/mpd/mpd.conf" ]]; then
-   # If mpd.conf exists in an alternative location
-   found_conf="$HOME/.config/mpd/mpd.conf"
-   mpdpass="$(grep -v "^#" "$HOME/.config/mpd/mpd.conf" | grep -v "^$" | grep password | grep control | head -n 1)"
-   mpdpass="${mpdpass%*\"}"
-   mpdpass="${mpdpass#*\"}"
-   mpdpass="${mpdpass%\@*}"
-elif [[ -f "$HOME/.config/mpd.conf" ]]; then
-   # If mpd.conf exists in another possible alternative location
-   found_conf="$HOME/.config/mpd.conf"
-   mpdpass="$(grep -v "^#" "$HOME/.config/mpd.conf" | grep -v "^$" | grep password | grep control | head -n 1)"
-   mpdpass="${mpdpass%*\"}"
-   mpdpass="${mpdpass#*\"}"
-   mpdpass="${mpdpass%\@*}"
-fi
-
-if [[ -n "$mpdpass" ]]; then
-   # If password is found in any mpd.conf file, update config.ini
-   found_config_ini="$HOME/.config/config.ini"
-   if [[ -f "$found_config_ini" ]]; then
-      sed -i "s/^\(MPDPASS\s*=\s*\).*\$/\1$mpdpass/" "$found_config_ini"
-   fi
-else
-   # If none of the standard locations exist or password not found, prompt the user for the mpd control password
-   read -p "What is the mpd control password? " mpdpass
-   # Update config.ini with the password entered by the user
-   found_config_ini="$HOME/.config/config.ini"
-   if [[ -f "$found_config_ini" ]]; then
-      sed -i "s/^\(MPDPASS\s*=\s*\).*\$/\1$mpdpass/" "$found_config_ini"
-   fi
-fi
-
-if [[ -n "$found_conf" ]]; then
-   # Update the found configuration file with the password
-   sed -i "s/^\(password\s*=\s*\).*\$/\1$mpdpass/" "$found_conf"
 fi
 
 # Get PLDIR
 pldir=$(get_pldir)
 
 # Create MPDIGNORE_FILE path
-MPDIGNORE_FILE="$pldir/.mpdignore.m3u"
+MPDIGNORE_FILE="$pldir/$MPDIGNORE_PLAYLIST"
 
 # Create MPDIGNORE_FILE
 create_mpdignore_file
@@ -93,12 +61,9 @@ create_mpdignore_file
 # Print MPDIGNORE_FILE path
 echo "MPDIGNORE_FILE: $MPDIGNORE_FILE"
 
-cp ./config.ini ./ignore.sh ./skip.sh ./mpdignore.py ./ignore-skip.py "$installdir"
+cp ./ignore.sh ./skip.sh ./mpdignore.py ./ignore-skip.py "$installdir"
 chown "$mpdignore_user:$mpdignore_group" "$installdir/ignore.sh" "$installdir/skip.sh" "$installdir/mpdignore.py" "$installdir/ignore-skip.py"
 chmod +x "$installdir/ignore.sh" "$installdir/skip.sh" "$installdir/mpdignore.py" "$installdir/ignore-skip.py"
-
-chown "$mpdignore_user:$mpdignore_group" "$installdir/config.ini"   # Change ownership to root
-chmod 600 "$installdir/config.ini"         # Set permissions to allow only root to read and modify
 
 if [[ ! -L "$installdir/skip" ]]; then
  ln -s "$installdir/skip.sh" "$installdir/skip"

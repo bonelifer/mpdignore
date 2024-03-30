@@ -37,7 +37,7 @@ MPDIGNORE consists of two main scripts:
 
 ## Usage
 
-To use these scripts, ensure you have the necessary dependencies installed and configure the `config.ini` file with your MPD server details and paths. Then, run the `install.sh` script to set up the MPDIgnore system. You can then use the provided scripts to control various aspects of your MPD server.
+You can change the ingest and mpdignore playlist in`config.ini`or leave them default. Then, run the `install.sh` script to set up the MPDIgnore system. You can then use the provided scripts to control various aspects of your MPD server.
 
 ## MPDIGNORE Workflow
 [WORKFLOW](./DOCS/WORKFLOW.md)
