@@ -1,3 +1,16 @@
+## ⚠️ PROJECT STATUS: ABANDONED ⚠️
+
+> **This project is no longer maintained.**
+
+- ❌ No further development will occur.
+- ❌ Bug reports, pull requests, and issues will not be reviewed.
+- 📦 This repo is archived and kept for reference only.
+- 🔄 You are free to fork and continue development independently.
+
+---
+
+Reason: Lost interest, a lot of the code is non-functioning.
+
 # MPDIgnore
 ## WIP: May no work currently
 
