@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 # Bash script to execute the Python script 'ignore-skip.py' with the 'ignore' argument,
 # which adds the current song to a special '.mpdignore.m3u' playlist to ignore it for future playback.
@@ -13,5 +13,5 @@ if [[ -z "$python_path" ]]; then
 fi
 
 # Call Python script with argument
-"$python_path" skip-ignore.py ignore
+"$python_path" "$(dirname "$0")/ignore-skip.py" ignore
 

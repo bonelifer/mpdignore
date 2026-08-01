@@ -29,3 +29,6 @@ Thumbs.db
 # Ignore dependencies
 /node_modules
 
+# Ignore locally-generated live config (see config.ini.example)
+config.ini
+

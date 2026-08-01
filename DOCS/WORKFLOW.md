@@ -12,21 +12,16 @@
 
 ## Workflow for **ignore-skip.py:**
 
-1.     Accept user input to determine the action (ignore or skip).
-2.     If the action is "ignore":
-		*  Add the current track to the INGEST playlist.
-		*  Proceed to the next track in the queue.
-		* Write the current track to the INGEST playlist.
-		* Copy the current queue to a temporary playlist to preserve the playback order.
-		* Load the INGEST playlist to add the ignored track without disrupting the current playback.
-		* Add the ignored track to the INGEST playlist for queue management.
-		* Reload the temporary playlist to restore the original queue.
-		* Remove the ignored track from the queue to prevent it from affecting subsequent playback.
-		* Proceed to the next track to continue playback seamlessly.
-3.     If the action is "skip":
-		*  Proceed to the next track in the queue.
-		* Log the skipped track.
-4.     Repeat the process based on user input.
+1.     Accept a single command-line argument: `ignore` or `skip`.
+2.     Connect to MPD (host/port/password read from `mpd.conf`) via python-mpd2.
+3.     If the action is "ignore":
+        * Ask MPD for the currently playing track (`currentsong`).
+        * Add that track's path to the INGEST playlist via MPD's `playlistadd` command.
+        * Advance to the next track (`next`).
+4.     If the action is "skip":
+        * Advance to the next track (`next`) without recording it anywhere.
+5.     `mpdignore.py` (running separately as a daemon) picks up new entries in the
+       INGEST playlist and writes them into the appropriate album's `.mpdignore` file.
 &nbsp;
 
 ## License

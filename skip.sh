@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 # Bash script to call the Python script with the 'skip' argument. 
 
 # Find Python3 executable path
@@ -10,5 +10,5 @@ if [[ -z "$python_path" ]]; then
 fi
 
 # Call Python script with argument
-"$python_path" skip-ignore.py skip
+"$python_path" "$(dirname "$0")/ignore-skip.py" skip
 
