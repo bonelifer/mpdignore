@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 # Bash script to call the Python script with the 'skip' argument. 
 
 # Find Python3 executable path

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 # This script installs and configures the MPDIgnore system.
 # It sets up the necessary dependencies, copies the scripts to the appropriate directories,

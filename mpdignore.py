@@ -20,16 +20,16 @@ Workflow:
 - Repeat the monitoring process indefinitely.
 """
 
+import configparser
 import os
 import re
 import shutil
 import time
-import configparser
 
 
-# Function to parse MPD's `key "value"` config format (mpd.conf is not INI syntax)
-def parse_mpd_conf(path):
-    settings = {}
+def parse_mpd_conf(path: str) -> dict[str, str]:
+    """Parse an mpd.conf file's `key "value"` syntax (not INI) into a dict."""
+    settings: dict[str, str] = {}
     with open(path) as conf_file:
         for line in conf_file:
             line = line.split('#', 1)[0].strip()
@@ -40,8 +40,11 @@ def parse_mpd_conf(path):
     return settings
 
 
-# Function to read MPDIGNORE configuration from config.ini file
-def read_mpdignore_config():
+def read_mpdignore_config() -> configparser.SectionProxy:
+    """Build the effective MPDIGNORE config from config.ini, layered with
+    playlist_directory/music_directory/port/password discovered from mpd.conf
+    if one is found. Returns the [MPDIGNORE] section with defaults filled in.
+    """
     config = configparser.ConfigParser()
     # Look next to this script first (repo checkout), then the installed location.
     config_paths = [
@@ -93,8 +96,10 @@ MUSIC_DIR = os.path.expanduser(mpdignore_config['MUSIC_DIR'])
 MPDIGNORE_FILE = os.path.join(PLDIR, MPDIGNORE_PLAYLIST)
 INGEST_FILE = os.path.join(PLDIR, INGEST_PLAYLIST)
 
-# Function to process tracks
-def process_tracks():
+def process_tracks() -> None:
+    """Append each track in MPDIGNORE_FILE to its album's .mpdignore file
+    (skipping duplicates already recorded there), then empty MPDIGNORE_FILE.
+    """
     with open(MPDIGNORE_FILE, 'r') as temp_file:
         tracks = [line.strip() for line in temp_file if line.strip()]
 
@@ -115,8 +120,8 @@ def process_tracks():
 
     open(MPDIGNORE_FILE, 'w').close()
 
-# Main loop
-def main_loop():
+def main_loop() -> None:
+    """Poll INGEST_FILE every 5 seconds and process any tracks it contains."""
     while True:
         if os.path.exists(INGEST_FILE) and os.path.getsize(INGEST_FILE) > 0:
             shutil.copyfile(INGEST_FILE, MPDIGNORE_FILE)

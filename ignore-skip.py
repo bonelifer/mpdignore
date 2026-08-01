@@ -20,9 +20,9 @@ import sys
 from mpd import MPDClient
 
 
-# Function to parse MPD's `key "value"` config format (mpd.conf is not INI syntax)
-def parse_mpd_conf(path):
-    settings = {}
+def parse_mpd_conf(path: str) -> dict[str, str]:
+    """Parse an mpd.conf file's `key "value"` syntax (not INI) into a dict."""
+    settings: dict[str, str] = {}
     with open(path) as conf_file:
         for line in conf_file:
             line = line.split('#', 1)[0].strip()
@@ -33,8 +33,11 @@ def parse_mpd_conf(path):
     return settings
 
 
-# Function to read MPDIGNORE configuration from config.ini file
-def read_mpdignore_config():
+def read_mpdignore_config() -> configparser.SectionProxy:
+    """Build the effective MPDIGNORE config from config.ini, layered with
+    port/password discovered from mpd.conf if one is found. Returns the
+    [MPDIGNORE] section with defaults filled in.
+    """
     config = configparser.ConfigParser()
     # Look next to this script first (repo checkout), then the installed location.
     config_paths = [
@@ -76,7 +79,8 @@ MPD_PORT = int(mpdignore_config.get('MPD_PORT'))
 MPDPASS = mpdignore_config.get('MPDPASS')
 
 
-def connect():
+def connect() -> MPDClient:
+    """Open and authenticate an MPD connection using the resolved config."""
     client = MPDClient()
     client.connect(MPD_SERVER, MPD_PORT)
     if MPDPASS:
@@ -84,7 +88,8 @@ def connect():
     return client
 
 
-def ignore_current_track(client):
+def ignore_current_track(client: MPDClient) -> None:
+    """Add the currently playing track to the INGEST playlist and advance."""
     current = client.currentsong()
     track_file = current.get('file')
     if not track_file:
@@ -96,14 +101,16 @@ def ignore_current_track(client):
     client.next()
 
 
-def skip_current_track(client):
+def skip_current_track(client: MPDClient) -> None:
+    """Advance to the next track without recording the current one."""
     current = client.currentsong()
     track_file = current.get('file', '<unknown>')
     print(f"Skipped: {track_file}")
     client.next()
 
 
-def main():
+def main() -> None:
+    """Parse the ignore/skip argument and dispatch to the matching action."""
     parser = argparse.ArgumentParser(description="Ignore or skip the current MPD track.")
     parser.add_argument('action', choices=['ignore', 'skip'], help="Action to perform")
     args = parser.parse_args()
