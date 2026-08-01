@@ -5,6 +5,7 @@
 [![GitHub](https://badgen.net/badge/icon/github?icon=github&label)](https://github.com)
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![made-with-bash](https://img.shields.io/badge/Made%20with-Bash-1f425f.svg)](https://www.gnu.org/software/bash/)
+[![made-with-claude](https://img.shields.io/badge/Made%20with-Claude-1f425f.svg)](https://www.anthropic.com/claude)
 [![Pull Requests welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg?style=flat-square)](https://github.com/bonelifer/mpdignore/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
 
 MPDIGNORE is a set of scripts designed to enhance the functionality of Music Player Daemon (MPD) by providing features such as ignoring specific tracks, skipping tracks, and managing playlists effectively.
