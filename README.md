@@ -5,7 +5,7 @@
 [![GitHub](https://badgen.net/badge/icon/github?icon=github&label)](https://github.com)
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![made-with-bash](https://img.shields.io/badge/Made%20with-Bash-1f425f.svg)](https://www.gnu.org/software/bash/)
-[![Pull Requests welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg?style=flat-square)](https://github.com/bonelifer/mpd-scripts/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
+[![Pull Requests welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg?style=flat-square)](https://github.com/bonelifer/mpdignore/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
 
 MPDIGNORE is a set of scripts designed to enhance the functionality of Music Player Daemon (MPD) by providing features such as ignoring specific tracks, skipping tracks, and managing playlists effectively.
 
@@ -49,8 +49,20 @@ Copy `config.ini.example` to `~/.config/mpdignore/config.ini` and adjust the ing
 ## MPDIGNORE Workflow
 [WORKFLOW](./DOCS/WORKFLOW.md)
 
+## Contributing
+
+Contributions are welcome!
+
+- **Bug reports**: [Open an issue](https://github.com/bonelifer/mpdignore/issues).
+- **Everything else** (questions, feature requests, ideas, general discussion): [Use Discussions](https://github.com/bonelifer/mpdignore/discussions).
+- Pull requests are welcome for bug fixes or discussed features.
+
+## Acknowledgments
+
+- Code review, bug fixes, and documentation assisted by [Claude](https://www.anthropic.com/claude).
+
 ## License
 
-This project is licensed under the **GNU General Public License v3**.
+This project is licensed under the **GNU General Public License v3.0**.
 
 See [LICENSE](./LICENSE) for more information.
