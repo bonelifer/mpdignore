@@ -1,18 +1,4 @@
-## ⚠️ PROJECT STATUS: ABANDONED ⚠️
-
-> **This project is no longer maintained.**
-
-- ❌ No further development will occur.
-- ❌ Bug reports, pull requests, and issues will not be reviewed.
-- 📦 This repo is archived and kept for reference only.
-- 🔄 You are free to fork and continue development independently.
-
----
-
-Reason: Lost interest, a lot of the code is non-functioning.
-
 # MPDIgnore
-## WIP: May no work currently
 
 [![GPLv3 license](https://img.shields.io/badge/License-GPLv3-blue.svg)](http://perso.crans.org/besson/LICENSE.html)
 
@@ -39,20 +25,26 @@ MPDIGNORE consists of two main scripts:
 
 | File                       | Description                                                                                     |
 |----------------------------|-------------------------------------------------------------------------------------------------|
-| ignore-skip.py | ignore-skip.py**: Allows users to ignore or skip the current track in the MPD playlist. |
+| ignore-skip.py | Allows users to ignore or skip the current track in the MPD playlist (via python-mpd2). |
 | ignore.sh | Bash script to call the Python script with the 'ignore' argument.                               |
 | ignore | Symlink to run ignore-skip.py with the ignore arguement.                         |
 | mpdignore.py | Monitors changes to an MPD ingest playlist and adds tracks to an MPD ignore list.   |
 | install.sh | Bash script to install and configure the MPDIgnore system.                                        |
-| config.ini | Configuration file containing MPD server details and paths.                                       |
+| config.ini.example | Template configuration file containing playlist names; installed as `~/.config/mpdignore/config.ini`. |
 | skip.sh | Bash script to call the Python script with the 'skip' argument.                                    |
 | skip | Symlink to run ignore-skip.py with the skip arguement. 
 | mpdignore.path | Systemd path unit file to monitor changes to the MPD ingest playlist.                             |
 | mpdignore.service | Systemd service unit file to run the `mpdignore.py` script.                                       |
 
+## Requirements
+
+- Python 3
+- [python-mpd2](https://pypi.org/project/python-mpd2/) (`install.sh` installs this automatically)
+- An MPD server with a readable `mpd.conf` (used to discover `playlist_directory`, `music_directory`, `port`, and `password`)
+
 ## Usage
 
-You can change the ingest and mpdignore playlist in`config.ini`or leave them default. Then, run the `install.sh` script to set up the MPDIgnore system. You can then use the provided scripts to control various aspects of your MPD server.
+Copy `config.ini.example` to `~/.config/mpdignore/config.ini` and adjust the ingest/mpdignore playlist names if desired, or leave them default. Then run the `install.sh` script to set up the MPDIgnore system (it will create `~/.config/mpdignore/config.ini` from the template if it doesn't already exist). You can then use the provided scripts to control various aspects of your MPD server.
 
 ## MPDIGNORE Workflow
 [WORKFLOW](./DOCS/WORKFLOW.md)
