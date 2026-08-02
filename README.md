@@ -60,6 +60,7 @@ Contributions are welcome!
 
 ## Acknowledgments
 
+- Inspired by [mpdignore](https://github.com/iconoclasthero/mpdignore) by [iconoclasthero](https://github.com/iconoclasthero).
 - Code review, bug fixes, and documentation assisted by [Claude](https://www.anthropic.com/claude).
 
 ## License
